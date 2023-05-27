@@ -1,0 +1,23 @@
+{
+	"name": "tasksync",
+	"description": "",
+	"author": "haikalrafifas@github.com",
+	"version": "1.0.0",
+	"license": "",
+	"default": {
+		"title": "TaskSync",
+		"uri": {
+			"root": "/",
+			"auth": "auth/login",
+			"app": "app"
+		},
+		"controller": "app",
+		"method": "index",
+		"cookiename": "SNiP",
+		"api": {
+			"domain": "YOUR_MOODLE_WEBSITE_DOMAIN",
+			"login": "login/index.php",
+			"service": "lib/ajax/service.php"
+		}
+	}
+}
