@@ -14,7 +14,7 @@ require file_exists($system) ? $system : exit('<pre>Failed to load system files!
  * Request middleware.
  */
 $request = new Request;
-if ( $request->is('assets') ) return false;
+if ( $request->is('assets', true) ) return false;
 if ( $request->is('proxy') ) return new Proxy($request->path);
 
 /**

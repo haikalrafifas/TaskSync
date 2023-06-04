@@ -3,6 +3,7 @@
 namespace System\Core;
 
 class Request {
+
     public array $path;
 
     public function __construct() {
@@ -10,6 +11,11 @@ class Request {
         $url = $_SERVER["REQUEST_URI"];
         $uri = $this->parseURI($url);
         $this->path = $uri;
+    }
+
+    public function is(string $type, bool $checkFile = false) {
+        $file = BASE_PATH . $_SERVER["REQUEST_URI"];
+        return $this->path[0] === $type && ($checkFile ? file_exists($file) && is_file($file) : 1);
     }
 
     private function setConstants() {
@@ -23,12 +29,4 @@ class Request {
         return $uri;
     }
 
-    public function is(string $type) {
-        $matched = $this->path[0] === $type;
-        if ( $type === 'static' ) {
-            $static = BASE_PATH . $_SERVER["REQUEST_URI"];
-            $matched = $matched && file_exists($static) && is_file($static);
-        }
-        return $matched;
-    }
 }

@@ -1,62 +1,99 @@
 <?php
+
 namespace System\Core;
 
 class Proxy {
-    public function __construct($path) {
-        // Set the target URL you want to proxy
-        $targetUrl = $path[1] ? implode('/', array_slice($path, 1)) : exit('No target specified');
 
+    private $curl;
+
+    public function __construct(array $path) {
+        // Set the target URL you want to proxy
+        $targetUrl = $this->getTargetUrl($path);
+
+        // Execute the proxy request
+        $response = $this->executeProxyRequest($targetUrl);
+
+        // Output the response to the client
+        $this->outputResponse($response);
+    }
+
+    private function getTargetUrl(array $path) {
+        return isset($path[1]) ? implode('/', array_slice($path, 1)) : exit('No target specified');
+    }
+
+    private function executeProxyRequest(string $targetUrl) {
         // Create a new cURL resource
-        $curl = curl_init();
+        $this->curl = curl_init();
 
         // Set the options for the cURL request
-        curl_setopt($curl, CURLOPT_URL, $targetUrl);
-        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($curl, CURLOPT_HEADER, true);
-        curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
-        curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false); // Use this only for testing, not recommended in production
+        curl_setopt($this->curl, CURLOPT_URL, $targetUrl);
+        curl_setopt($this->curl, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($this->curl, CURLOPT_HEADER, true);
+        curl_setopt($this->curl, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($this->curl, CURLOPT_SSL_VERIFYPEER, false); // Use this only for testing, not recommended in production
 
-        $cookies = $_SERVER["HTTP_COOKIE"]??'';
+        $cookies = $_SERVER["HTTP_COOKIE"] ?? '';
         $headers = [];
+
         if ( !empty($cookies) ) $headers = ["Cookie: $cookies"];
 
-        $isPosted = false;
         if ( $_SERVER['REQUEST_METHOD'] === 'POST' ) {
-            // Get the POST payload from the request
-            $headers[] = 'Content-Type: ' . $_SERVER['CONTENT_TYPE'];
-            $payload = file_get_contents('php://input');
-            foreach ( explode(';', $cookies) as $cookie ) {
-                if ( strpos($cookie, "MoodleSession=") !== false ) {
-                    $headers[0] = "Cookie: $cookie";
-                    break;
-                }
-            }
-            curl_setopt($curl, CURLOPT_POST, true);
-            curl_setopt($curl, CURLOPT_POSTFIELDS, $payload);
-            $isPosted = true;
+            $headers = $this->addPostHeaders($headers, $cookies);
+            curl_setopt($this->curl, CURLOPT_POST, true);
+            curl_setopt($this->curl, CURLOPT_POSTFIELDS, $this->getPostPayload());
         }
 
-        curl_setopt($curl, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($this->curl, CURLOPT_HTTPHEADER, $headers);
 
         // Execute the cURL request
-        $response = curl_exec($curl);
+        $response = curl_exec($this->curl);
 
         // Check for errors
-        if ( $response === false ) exit('Error: ' . curl_error($curl));
+        if ( $response === false ) exit('Error: ' . curl_error($this->curl));
 
+        return $response;
+    }
+
+    private function addPostHeaders(array $headers, string $cookies) {
+        $contentType = $_SERVER['CONTENT_TYPE'];
+        $headers[] = 'Content-Type: ' . $contentType;
+
+        $cookieHeader = $this->findMoodleSessionCookieHeader($cookies);
+        if ( $cookieHeader !== false ) $headers[0] = "Cookie: $cookieHeader";
+
+        return $headers;
+    }
+
+    private function findMoodleSessionCookieHeader(string $cookies) {
+        foreach (explode(';', $cookies) as $cookie) {
+            if (strpos($cookie, "MoodleSession=") !== false) {
+                return $cookie;
+            }
+        }
+        return false;
+    }
+
+    private function getPostPayload() {
+        return file_get_contents('php://input');
+    }
+
+    private function outputResponse(string $response) {
         // Get the response headers
-        $headerSize = curl_getinfo($curl, CURLINFO_HEADER_SIZE);
+        $headerSize = curl_getinfo($this->curl, CURLINFO_HEADER_SIZE);
         $responseHeaders = substr($response, 0, $headerSize);
 
         // Output the response headers
-        header('Content-Type: ' . curl_getinfo($curl, CURLINFO_CONTENT_TYPE));
+        header('Content-Type: ' . curl_getinfo($this->curl, CURLINFO_CONTENT_TYPE));
+        $this->outputCookiesToClient($responseHeaders);
 
-        // Close the cURL resource
-        curl_close($curl);
+        // Output the response body content
+        $responseBody = substr($response, $headerSize);
+        echo $responseBody; ob_flush(); flush(); exit;
+    }
 
-        // Filter the 'Set-Cookie' header response to the client
+    private function outputCookiesToClient(string $responseHeaders) {
         preg_match_all('/^Set-Cookie:\s*([^;]*)(;\s*secure)?/mi', $responseHeaders, $matches);
-        if (!empty($matches[1])) {
+        if ( !empty($matches[1]) ) {
             $cookies = $matches[1];
             $cookieValues = [];
 
@@ -71,14 +108,11 @@ class Proxy {
             }
 
             // Set the first occurrence of MoodleSession cookie
-            if (!empty($cookieValues)) {
+            if ( !empty($cookieValues) ) {
                 $firstCookieValue = reset($cookieValues);
                 header("Set-Cookie: MoodleSession=$firstCookieValue; path=/", false);
             }
         }
-
-        // Output the response body content
-        $responseBody = substr($response, $headerSize);
-        return exit($responseBody);
     }
+
 }

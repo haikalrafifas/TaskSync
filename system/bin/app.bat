@@ -13,6 +13,7 @@ if "%1"=="start" (
   echo App running. . .
   goto :eof
 ) else if "%1"=="stop" (
+  SET "is_new="
 	echo [%date% %time%]
 	taskkill /IM php.exe /F 2>nul >nul && echo App stopped successfully || echo App is already shut down
   goto :eof

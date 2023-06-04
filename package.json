@@ -1,23 +1,7 @@
 {
 	"name": "tasksync",
-	"description": "",
+	"description": "TaskSync is an application to help students to manage their moodle tasks and homeworks.",
 	"author": "haikalrafifas@github.com",
 	"version": "1.0.0",
-	"license": "",
-	"default": {
-		"title": "TaskSync",
-		"uri": {
-			"root": "/",
-			"auth": "auth/login",
-			"app": "app"
-		},
-		"controller": "app",
-		"method": "index",
-		"cookiename": "SNiP",
-		"api": {
-			"domain": "YOUR_MOODLE_WEBSITE_DOMAIN",
-			"login": "login/index.php",
-			"service": "lib/ajax/service.php"
-		}
-	}
+	"license": "Apache License 2.0"
 }

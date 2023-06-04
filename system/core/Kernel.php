@@ -2,8 +2,6 @@
 
 namespace System\Core;
 
-use System\Core\Metadata;
-
 /**
  * The Kernel class is responsible for handling the request
  * and routing it to the appropriate controller and method.
@@ -39,7 +37,7 @@ class Kernel {
     private array $data = [];
 
     /**
-     * The default values from .env file.
+     * The default values from default file.
      *
      * @var array
      */
@@ -52,19 +50,12 @@ class Kernel {
      */
     public string $accessToken;
 
-    public array $metadata;
-
     /**
      * The constructor for the App class.
      * 
      * @param object $uri The requested URL.
      */
     public function __construct(public array $uri) {
-        $metadata = new Metadata('package.json');
-        $this->default = $metadata->content['default'];
-        unset($metadata->content['default']);
-        $this->metadata = $metadata->content;
-        
         $this->setDefaultValues();
         $this->startSession($this->default['cookiename']);
 
@@ -133,16 +124,15 @@ class Kernel {
     }
 
     private function setDefaultValues() {
-        define('APP_NAME', $this->metadata["name"]??'');
-        define('ROOT', $this->metadata['uri']['root']??'');
+        $this->checkFileExistence('app/default.php', 'Config');
+        $this->default = include 'app/default.php';
+
+        define('APP_NAME', $this->default["title"]??'');
+        define('ROOT', $this->default['uri']['root']??'');
         
         $this->default["pathController"] = "app/controllers/";
         $this->default["pathModel"] = "app/models/";
         $this->default["pathView"] = "app/views/";
-        
-        foreach ( $this->default as $default ) {
-            $this->default[] = $default;
-        }
         
         $this->data["URI"] = $this->uri;
         $this->data["api"] = $this->default["api"] ?? '';
@@ -158,8 +148,18 @@ class Kernel {
         $defaultController = $this->default["controller"];
         $isAuth = $this->data["isAuth"];
 
+        if ( $this->isFactoryNew() && $this->controller !== 'setup' ) return header('Location: '.ROOT.'setup');
+        if ( !$this->isFactoryNew() && $this->controller === 'setup' ) return header('Location: '.$this->default['uri']['app']);
+        if ( $this->controller === 'setup' ) return;
+
         if ( $isAuth && $this->controller === $defaultController ) { header("Location: ".ROOT.$this->default['uri']['app']); }
         if ( !$isAuth && $this->controller !== $defaultController ) { header("Location: ".ROOT.$this->default['uri']['auth']); }
+    }
+
+    private function isFactoryNew() {
+        $signature = 'system/bin/signature';
+        $this->checkFileExistence($signature, 'Signature', true);
+        return empty(file_get_contents(BASE_PATH.$signature));
     }
 
     private function startSession(string $sessionName) {

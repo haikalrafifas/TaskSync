@@ -1,0 +1,4 @@
+2023-06-04
+==========
+[ ] Implement push or web notification whenever the minutely API response is different from the previously cached response
+[ ] Get user `firstname` and `lastname` only by using `sesskey` and `MoodleSession`
